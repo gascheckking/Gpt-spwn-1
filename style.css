@@ -34,26 +34,29 @@ body{
    ========================= */
 
 .app-shell{
-  position:relative;
-  z-index:10;
+  position: relative;
+  z-index: 10;
 
-  /* 🔥 gör appen bredare */
-  max-width:1100px;
-  margin:0 auto;
+  /* 🔥 Plattform-bredd */
+  width: min(1280px, 100%);
+  margin: 0 auto;
 
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 
-  padding:16px;
-  padding-bottom:90px; /* plats för bottom-nav */
+  padding: 16px;
+  padding-left: clamp(12px, 2.2vw, 24px);
+  padding-right: clamp(12px, 2.2vw, 24px);
+  padding-bottom: 90px; /* plats för bottom-nav */
 }
 
-/* ännu bredare på desktop */
+/* ännu bredare på stora skärmar */
 @media (min-width:1024px){
   .app-shell{
-    max-width:1280px;
+    width: min(1440px, 100%);
   }
+}
 }
 /* MESH BG */
 #mesh-bg{position:fixed;inset:0;z-index:0}
