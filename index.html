@@ -3,11 +3,16 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes"
+  />
   <title>SpawnEngine · Mesh HUD</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -101,7 +106,7 @@
   </div>
 
   <!-- APP SHELL -->
-  <div class="shell">
+  <div class="shell" id="app-container">
 
     <!-- TOP HEADER -->
     <header class="topbar">
@@ -121,17 +126,17 @@
           <span class="mono">LIVE</span>
         </div>
 
-        <button id="btn-connect" class="btn-connect">
+        <button id="btn-connect" class="btn-connect" type="button">
           <span class="icon">👛</span>
-          <span class="label" id="connectLabel">Anslut</span>
+          <span class="label">Anslut</span>
           <span class="sub mono" id="vaultEth">Base wallet</span>
         </button>
 
-        <button id="btn-alerts" class="alerts-btn" aria-label="Alerts">
+        <button id="btn-alerts" class="alerts-btn" aria-label="Alerts" type="button">
           🔔 <span id="alertsCount" class="badge">3</span>
         </button>
 
-        <button id="settings-btn" class="icon-button" aria-label="Settings">⚙</button>
+        <button id="settings-btn" class="icon-button" aria-label="Settings" type="button">⚙</button>
       </div>
     </header>
 
@@ -164,17 +169,17 @@
         <div class="sidebar-footer">
           <div class="mono small">APP ID: spawnengine-v1</div>
           <div class="mono small">User: MeshArchitect</div>
-          <button class="btn-danger" id="btn-logout">Logga ut</button>
+          <button class="btn-danger" id="btn-logout" type="button">Logga ut</button>
         </div>
       </aside>
 
       <!-- CONTENT -->
-      <main class="content">
+      <main class="content" id="contentRoot">
 
         <!-- HERO -->
         <section class="card hero">
           <div class="hero-top">
-            <button class="avatar-chip" id="btn-account">
+            <button class="avatar-chip" id="btn-account" type="button">
               <div class="avatar-circle">S</div>
               <div>
                 <div class="avatar-handle" id="handle">@spawniz</div>
@@ -192,11 +197,11 @@
           <div class="hero-title">
             <h1>Mesh HUD</h1>
             <p>En sammanhängande vy över aktivitet, moduler och plattform-import (mock → live).</p>
-          </div>
 
-          <div class="hero-actions">
-            <button class="btn-soft" id="btn-quick-pack">🎁 Quick Pack</button>
-            <button class="btn-soft" id="btn-quick-mesh">🌀 Mesh</button>
+            <div class="hero-actions">
+              <button class="btn-ghost" id="btn-quick-pack" type="button">🎁 Quick Pack</button>
+              <button class="btn-ghost" id="btn-quick-mesh" type="button">🌀 Mesh</button>
+            </div>
           </div>
 
           <div class="hero-stats">
@@ -224,7 +229,7 @@
           <div class="note">XP kör mock nu · senare kopplas den mot riktiga event-källor (Zora/Farcaster/Vibe/Base).</div>
         </section>
 
-        <!-- VIEWS -->
+        <!-- VIEWS (fylls av app.js) -->
         <section class="view active" id="view-dashboard"></section>
         <section class="view" id="view-trading"></section>
         <section class="view" id="view-packs"></section>
@@ -241,11 +246,11 @@
 
     <!-- MOBILE BOTTOM NAV -->
     <nav class="bottom-nav" id="mobileNav">
-      <button class="bottom-btn active" data-view="dashboard">🏠<span>HUD</span></button>
-      <button class="bottom-btn" data-view="trading">📈<span>Trade</span></button>
-      <button class="bottom-btn" data-view="packs">🎒<span>Packs</span></button>
-      <button class="bottom-btn" data-view="forge">🧩<span>Forge</span></button>
-      <button class="bottom-btn" data-view="supcast">🛰<span>Support</span></button>
+      <button class="bottom-btn active" data-view="dashboard" type="button">🏠<span>HUD</span></button>
+      <button class="bottom-btn" data-view="trading" type="button">📈<span>Trade</span></button>
+      <button class="bottom-btn" data-view="packs" type="button">🎒<span>Packs</span></button>
+      <button class="bottom-btn" data-view="forge" type="button">🧩<span>Forge</span></button>
+      <button class="bottom-btn" data-view="supcast" type="button">🛰<span>Support</span></button>
     </nav>
 
   </div>
