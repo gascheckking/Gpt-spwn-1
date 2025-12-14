@@ -619,3 +619,33 @@ body{
   opacity:1;
   transform: translateX(-50%) translateY(-6px);
 }
+/* =========================
+   COMPACT MOBILE (fix “inzoomat”)
+   ========================= */
+@media (max-width:520px){
+  .shell{ padding:10px; padding-bottom:82px; }
+
+  .topbar{ padding:8px 10px; border-radius:14px; }
+  .brand-text{ font-size:16px; }
+
+  .btn-connect{ padding:8px 10px; gap:8px; }
+  .btn-connect .sub{ font-size:11px; }
+
+  .alerts-btn{ padding:8px 10px; }
+  .icon-button{ width:38px; height:38px; border-radius:12px; }
+
+  .ticker-track{ padding:8px 10px; gap:14px; }
+  .tick{ padding:6px 9px; gap:8px; }
+
+  .content{ padding:10px; }
+  .hero{ padding:12px; }
+
+  .hero-title h1{ font-size:22px; }
+  .hero-title p{ font-size:13px; }
+
+  .avatar-chip{ padding:9px 10px; }
+  .avatar-circle{ width:32px; height:32px; }
+
+  .stat,.kpi{ padding:9px 10px; border-radius:14px; }
+  .btn-ghost{ padding:8px 10px; }
+}
