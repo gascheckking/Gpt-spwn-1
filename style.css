@@ -622,9 +622,15 @@ body{
 /* =========================
    COMPACT MOBILE (fix “inzoomat”)
    ========================= */
-@media (max-width:520px){
-  .shell{ padding:10px; padding-bottom:82px; }
-
+@media (max-width:920px){
+  .shell{
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
   .topbar{ padding:8px 10px; border-radius:14px; }
   .brand-text{ font-size:16px; }
 
@@ -648,4 +654,15 @@ body{
 
   .stat,.kpi{ padding:9px 10px; border-radius:14px; }
   .btn-ghost{ padding:8px 10px; }
+}
+@media (max-width:920px){
+  .main{
+    grid-template-columns: 1fr;   /* dödar vänster-höger-halvan */
+    gap: 10px;
+  }
+
+  .content{
+    width: 100%;
+    margin: 0 auto;
+  }
 }
