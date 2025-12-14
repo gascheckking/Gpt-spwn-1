@@ -1,780 +1,563 @@
 // app.js
 (() => {
-  const $ = (q, el=document) => el.querySelector(q);
-  const $$ = (q, el=document) => Array.from(el.querySelectorAll(q));
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  // ---------- STATE ----------
   const state = {
     view: "dashboard",
     role: "creator",
-    connected: false,
-    wallet: null,
+    roleLabel: "Creator / Artist",
+    roleShort: "Creator",
     alerts: 3,
     xp: 1575,
     spn: 497,
-    wallets: 0,
     eventsToday: 10,
-    gas: 0.18
+    gas: 0.19,
+    wallets: 0,
+    vaultText: "Base wallet",
+    handle: "@spawniz",
   };
 
-  // ---------- UI refs ----------
-  const sidebar = $("#sidebar");
-  const btnMenu = $("#btn-menu");
-  const settingsBtn = $("#settings-btn");
-  const settingsBackdrop = $("#settings-backdrop");
-  const settingsClose = $("#settings-close");
-  const btnConnect = $("#btn-connect");
-  const connectLabel = $("#connectLabel");
-  const vaultEth = $("#vaultEth");
-  const alertsCount = $("#alertsCount");
-  const alertsKpi = $("#alertsKpi");
-  const toast = $("#toast");
-
-  const gasEl = $("#gas");
-  const walletsEl = $("#wallets");
-  const xpEl = $("#xp");
-  const spnEl = $("#spn");
-  const eventsTodayEl = $("#eventsToday");
-
-  const roleGrid = $("#roleGrid");
-  const saveRoleBtn = $("#save-role");
-  const rolePill = $("#rolePill");
-  const roleShort = $("#roleShort");
-
-  const quickPack = $("#btn-quick-pack");
-  const quickMesh = $("#btn-quick-mesh");
-
-  const tickerTrack = $("#tickerTrack");
-
-  // ---------- HELPERS ----------
-  const fmtMoney = (n) => {
-    try { return new Intl.NumberFormat("sv-SE", { style:"currency", currency:"USD", maximumFractionDigits:2 }).format(n); }
-    catch { return `$${Number(n).toFixed(2)}`; }
-  };
-
-  function showToast(msg){
-    toast.textContent = msg;
-    toast.classList.add("show");
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=> toast.classList.remove("show"), 1400);
+  // ---------- Toast ----------
+  const toastEl = $("#toast");
+  let toastTimer = null;
+  function toast(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1200);
   }
 
-  function setView(view){
-    state.view = view;
+  // ---------- Views ----------
+  const viewIds = [
+    "dashboard","trading","packs","pull","forge","feed","supcast","settings","leaderboard","profile"
+  ];
+  function setActiveView(next) {
+    state.view = next;
 
-    $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === view));
-    $$(".bottom-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+    // sidebar buttons
+    $$(".nav-item").forEach(btn => btn.classList.toggle("active", btn.dataset.view === next));
+    // bottom buttons
+    $$(".bottom-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.view === next));
 
-    $$(".view").forEach(v => v.classList.remove("active"));
-    const target = $(`#view-${view}`);
-    if (target) target.classList.add("active");
+    // sections
+    viewIds.forEach(id => {
+      const el = $("#view-" + id);
+      if (el) el.classList.toggle("active", id === next);
+    });
 
-    // close sidebar on mobile
-    if (window.matchMedia("(max-width:980px)").matches) sidebar.classList.remove("open");
-
-    // render view content
-    renderView(view);
+    // close mobile sidebar
+    const sidebar = $("#sidebar");
+    if (sidebar) sidebar.classList.remove("open");
   }
 
-  function openSettings(){
-    settingsBackdrop.classList.remove("hidden");
-  }
-  function closeSettings(){
-    settingsBackdrop.classList.add("hidden");
+  // ---------- Render blocks ----------
+  const MOCK_EVENTS = [
+    { t:"Zora Köp", tag:"Fragment", cta:"Diskutera", val:"$606.61", who:"CreatorX", meta:"interagerade med S002–BETA. Notional", ico:"💰" },
+    { t:"Fragment Burn", tag:"Core", cta:"Pull Lab", val:"$1008.70", who:"MeshArchitect", meta:"interagerade med S005–MONAD. Notional", ico:"🔥" },
+    { t:"Farcaster Cast", tag:"Fragment", cta:"Diskutera", val:"$192.69", who:"NewUser", meta:"interagerade med S005–MONAD. Notional", ico:"🟦" },
+    { t:"Val Alert", tag:"Relic", cta:"Följ Val", val:"$104.41", who:"MeshArchitect", meta:"interagerade med S004–BASE. Notional", ico:"🐺" },
+    { t:"Relik Funnen", tag:"Core", cta:"Se Kort", val:"$645.29", who:"NewUser", meta:"interagerade med S004–BASE. Notional", ico:"🪙" },
+    { t:"Pack Öppnad", tag:"Fragment", cta:"Se Kort", val:"$1137.37", who:"Spawniz", meta:"interagerade med S003–ZORA. Notional", ico:"🎒" },
+  ];
+
+  function panel(title, sub, inner) {
+    return `
+      <div class="panel">
+        <h3>${title}</h3>
+        ${sub ? `<p class="sub">${sub}</p>` : ``}
+        ${inner}
+      </div>
+    `;
   }
 
-  function connectMock(){
-    state.connected = !state.connected;
-    if (state.connected){
-      state.wallet = "0x7a3f...B2d9";
-      connectLabel.textContent = "Ansluten";
-      vaultEth.textContent = "Vault 0.23 ETH";
-      $("#settingsWalletAddress").textContent = state.wallet;
-      showToast("Wallet ansluten (mock)");
-    } else {
-      state.wallet = null;
-      connectLabel.textContent = "Anslut";
-      vaultEth.textContent = "Base wallet";
-      $("#settingsWalletAddress").textContent = "Not connected";
-      showToast("Wallet frånkopplad");
+  function rows(items) {
+    return `
+      <div class="list">
+        ${items.map(it => `
+          <div class="row">
+            <div class="left">
+              <div class="ico">${it.ico}</div>
+              <div class="meta">
+                <div class="t">${it.t} <span class="chip" style="margin-left:8px">${it.tag}</span></div>
+                <div class="s">${it.who} ${it.meta}</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button class="chip" type="button" data-cta="${it.cta}">${it.cta}</button>
+              <div class="val">${it.val}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function renderDashboard() {
+    const el = $("#view-dashboard");
+    if (!el) return;
+
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Mesh HUD / Översikt", "En enda sammanhängande vy över all aktivitet i SpawnEngine-ekosystemet.", `
+          <div class="grid2" style="margin-top:10px">
+            <div class="panel" style="padding:12px">
+              <div class="sub">Totala Packs Öppnade</div>
+              <div style="font-weight:950;font-size:28px">4,321</div>
+            </div>
+            <div class="panel" style="padding:12px">
+              <div class="sub">Total Volym (24h)</div>
+              <div style="font-weight:950;font-size:28px">$1.2M</div>
+            </div>
+          </div>
+        `)}
+        ${panel("Live events (mock)", "Zora · Farcaster · Vibe · Base → in i Mesh", rows(MOCK_EVENTS))}
+      </div>
+    `;
+
+    // CTA click (mock)
+    $$("#view-dashboard [data-cta]").forEach(btn => {
+      btn.addEventListener("click", () => toast(btn.dataset.cta + " (mock)"));
+    });
+  }
+
+  function renderTrading() {
+    const el = $("#view-trading");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Trading Wall", "Snipes, flows, spreads, PnL (mock).", rows(MOCK_EVENTS.slice(0,4)))}
+        ${panel("Signals", "Auto-tagga events → alerts + XP.", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">📡</div><div class="meta"><div class="t">SniperBot</div><div class="s">Pack öppnad · Artifact</div></div></div><div class="val">$53.60</div></div>
+            <div class="row"><div class="left"><div class="ico">🧠</div><div class="meta"><div class="t">Alpha Lane</div><div class="s">Farcaster trend match</div></div></div><span class="chip chip-green">+45 XP</span></div>
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
+  function renderPacks() {
+    const el = $("#view-packs");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Packs & Inventory", "Här hamnar dina packs, kort, rarities och sets (mock).", `
+          <div class="grid2" style="margin-top:10px">
+            <div class="panel" style="padding:12px"><div class="sub">Öppnade packs</div><div style="font-weight:950;font-size:28px">7</div></div>
+            <div class="panel" style="padding:12px"><div class="sub">Fragments</div><div style="font-weight:950;font-size:28px">142</div></div>
+          </div>
+          <div style="margin-top:12px">${rows(MOCK_EVENTS.slice(2,6))}</div>
+        `)}
+        ${panel("Pack Reveal (mock)", "CSGO-style opening senare. Här är en snabb demo-knapp.", `
+          <button class="btn-primary full-width" id="btn-open-pack" type="button">Open Pack (mock reveal)</button>
+        `)}
+      </div>
+    `;
+
+    const btn = $("#btn-open-pack");
+    if (btn) btn.addEventListener("click", () => toast("Pack opened → Artifact (mock)"));
+  }
+
+  function renderPull() {
+    const el = $("#view-pull");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Pull Lab / Luck Engine", "Odds, burns, rerolls, entropy hooks (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">💎</div><div class="meta"><div class="t">Luck Multiplier</div><div class="s">v1 hooks ready</div></div></div><span class="chip chip-purple">x1.30</span></div>
+            <div class="row"><div class="left"><div class="ico">🧪</div><div class="meta"><div class="t">Fragment Burn</div><div class="s">Burn 10 → reroll</div></div></div><button class="chip" type="button" data-cta="Burn">Burn</button></div>
+          </div>
+        `)}
+        ${panel("Relics", "Lista/validera fynd (mock).", rows(MOCK_EVENTS.slice(0,3)))}
+      </div>
+    `;
+    $$("#view-pull [data-cta]").forEach(btn => btn.addEventListener("click", () => toast("Burn (mock)")));
+  }
+
+  function renderForge() {
+    const el = $("#view-forge");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Creator Forge", "Skapa moduler, drops, miniapp-surfaces (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">🧩</div><div class="meta"><div class="t">Create Module</div><div class="s">Deploy template (mock)</div></div></div><button class="chip" type="button" data-cta="Create">Create</button></div>
+            <div class="row"><div class="left"><div class="ico">🪪</div><div class="meta"><div class="t">API Key</div><div class="s">Issue + rate limits</div></div></div><button class="chip" type="button" data-cta="Issue">Issue</button></div>
+          </div>
+        `)}
+        ${panel("Surfaces", "Lägg in din egen app i SpawnEngine (mock).", rows(MOCK_EVENTS.slice(1,4)))}
+      </div>
+    `;
+    설명
+    $$("#view-forge [data-cta]").forEach(btn => btn.addEventListener("click", () => toast(btn.dataset.cta + " (mock)")));
+  }
+
+  function renderFeed() {
+    const el = $("#view-feed");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("SpawnFeed / Reels", "Snabb feed med actions + replay (mock).", rows(MOCK_EVENTS))}
+        ${panel("Clip Queue", "Auto-klipp event → share to Farcaster (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">🎥</div><div class="meta"><div class="t">Auto Clip</div><div class="s">Pack reveal → 6s clip</div></div></div><span class="chip chip-amber">Queued</span></div>
+            <div class="row"><div class="left"><div class="ico">🟪</div><div class="meta"><div class="t">Post Draft</div><div class="s">Warpcast ready</div></div></div><button class="chip" type="button" data-cta="Post">Post</button></div>
+          </div>
+        `)}
+      </div>
+    `;
+    $$("#view-feed [data-cta]").forEach(btn => btn.addEventListener("click", () => toast("Posted (mock)")));
+  }
+
+  function renderSupcast() {
+    const el = $("#view-supcast");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("SupCast / Support", "Support som gameplay: replies + solves → XP (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">🛰</div><div class="meta"><div class="t">#1023 — “Pack reveal not loading”</div><div class="s">Open · +45 XP</div></div></div><button class="chip" type="button" data-cta="Update">Update</button></div>
+            <div class="row"><div class="left"><div class="ico">🛰</div><div class="meta"><div class="t">#1024 — “Listing sync”</div><div class="s">Assign · +20 XP</div></div></div><button class="chip" type="button" data-cta="Assign">Assign</button></div>
+          </div>
+        `)}
+        ${panel("Alerts Router", "Event Mesh routing → notis + badges (mock).", rows(MOCK_EVENTS.slice(0,4)))}
+      </div>
+    `;
+    $$("#view-supcast [data-cta]").forEach(btn => btn.addEventListener("click", () => toast(btn.dataset.cta + " (mock)")));
+  }
+
+  function renderSettingsView() {
+    const el = $("#view-settings");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="panel">
+        <h3>Inställningar</h3>
+        <p class="sub">Öppna sheet: klicka ⚙ uppe till höger.</p>
+        <div class="list">
+          <div class="row"><div class="left"><div class="ico">⚙</div><div class="meta"><div class="t">Mesh profile</div><div class="s">Role lanes / connections</div></div></div><button class="chip" type="button" id="openSheet">Open</button></div>
+        </div>
+      </div>
+    `;
+    const openSheet = $("#openSheet");
+    if (openSheet) openSheet.addEventListener("click", () => openSettings(true));
+  }
+
+  function renderLeaderboard() {
+    const el = $("#view-leaderboard");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Leaderboard", "XP / activity / streaks (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">🥇</div><div class="meta"><div class="t">@spawniz</div><div class="s">XP 1575 · Streak 6</div></div></div><span class="chip chip-green">#1</span></div>
+            <div class="row"><div class="left"><div class="ico">🥈</div><div class="meta"><div class="t">@mesharchitect</div><div class="s">XP 1320 · Streak 4</div></div></div><span class="chip">#2</span></div>
+            <div class="row"><div class="left"><div class="ico">🥉</div><div class="meta"><div class="t">@sniperbot</div><div class="s">XP 1210 · Streak 3</div></div></div><span class="chip">#3</span></div>
+          </div>
+        `)}
+        ${panel("Rewards", "Daily claim + quests (mock).", `
+          <button class="btn-primary full-width" id="btn-claim" type="button">Claim (mock)</button>
+        `)}
+      </div>
+    `;
+    const claim = $("#btn-claim");
+    if (claim) claim.addEventListener("click", () => toast("Claimed +25 XP (mock)"));
+  }
+
+  function renderProfile() {
+    const el = $("#view-profile");
+    if (!el) return;
+    el.innerHTML = `
+      <div class="grid2">
+        ${panel("Min Profil", "Mesh identity + connections (mock).", `
+          <div class="list">
+            <div class="row"><div class="left"><div class="ico">👤</div><div class="meta"><div class="t">${state.handle}</div><div class="s">Role: ${state.roleLabel}</div></div></div><span class="chip chip-purple">Mesh</span></div>
+            <div class="row"><div class="left"><div class="ico">🟪</div><div class="meta"><div class="t">Farcaster</div><div class="s">ready (mock)</div></div></div><span class="chip chip-green">Active</span></div>
+            <div class="row"><div class="left"><div class="ico">🟣</div><div class="meta"><div class="t">Zora</div><div class="s">docked (mock)</div></div></div><span class="chip chip-purple">Docked</span></div>
+          </div>
+        `)}
+        ${panel("Activity", "Senaste events (mock).", rows(MOCK_EVENTS))}
+      </div>
+    `;
+  }
+
+  function renderAll() {
+    renderDashboard();
+    renderTrading();
+    renderPacks();
+    renderPull();
+    renderForge();
+    renderFeed();
+    renderSupcast();
+    renderSettingsView();
+    renderLeaderboard();
+    renderProfile();
+  }
+
+  // ---------- Settings sheet ----------
+  const backdrop = $("#settings-backdrop");
+  function openSettings(open) {
+    if (!backdrop) return;
+    backdrop.classList.toggle("hidden", !open);
+  }
+
+  // ---------- Header / values ----------
+  function syncHeader() {
+    const alertsCount = $("#alertsCount");
+    const alertsKpi = $("#alertsKpi");
+    const vaultEth = $("#vaultEth");
+    const handle = $("#handle");
+    const settingsHandle = $("#settingsHandle");
+    const rolePill = $("#rolePill");
+    const roleShort = $("#roleShort");
+    const xp = $("#xp");
+    const spn = $("#spn");
+    const eventsToday = $("#eventsToday");
+    const gas = $("#gas");
+    const wallets = $("#wallets");
+    const alertsBtnCount = $("#alertsCount");
+
+    if (alertsCount) alertsCount.textContent = String(state.alerts);
+    if (alertsKpi) alertsKpi.textContent = String(state.alerts);
+    if (vaultEth) vaultEth.textContent = state.vaultText;
+    if (handle) handle.textContent = state.handle;
+    if (settingsHandle) settingsHandle.textContent = state.handle;
+    if (rolePill) rolePill.textContent = state.roleLabel;
+    if (roleShort) roleShort.textContent = state.roleShort;
+    if (xp) xp.textContent = String(state.xp);
+    if (spn) spn.textContent = String(state.spn);
+    if (eventsToday) eventsToday.textContent = String(state.eventsToday);
+    if (gas) gas.textContent = `~${state.gas.toFixed(2)} gwei`;
+    if (wallets) wallets.textContent = String(state.wallets);
+    if (alertsBtnCount) alertsBtnCount.textContent = String(state.alerts);
+  }
+
+  // ---------- Nav wiring ----------
+  function wireNav() {
+    $$(".nav-item").forEach(btn => {
+      btn.addEventListener("click", () => setActiveView(btn.dataset.view));
+    });
+
+    $$(".bottom-btn").forEach(btn => {
+      btn.addEventListener("click", () => setActiveView(btn.dataset.view));
+    });
+
+    const menuBtn = $("#btn-menu");
+    const sidebar = $("#sidebar");
+    if (menuBtn && sidebar) {
+      menuBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
+    }
+
+    const settingsBtn = $("#settings-btn");
+    const settingsClose = $("#settings-close");
+    if (settingsBtn) settingsBtn.addEventListener("click", () => openSettings(true));
+    if (settingsClose) settingsClose.addEventListener("click", () => openSettings(false));
+    if (backdrop) {
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) openSettings(false);
+      });
+    }
+
+    const btnAccount = $("#btn-account");
+    if (btnAccount) btnAccount.addEventListener("click", () => openSettings(true));
+
+    const connectBtn = $("#btn-connect");
+    if (connectBtn) {
+      connectBtn.addEventListener("click", () => {
+        state.vaultText = state.vaultText === "Base wallet" ? "Vault 0.23 ETH" : "Base wallet";
+        toast(state.vaultText === "Base wallet" ? "Disconnected (mock)" : "Connected (mock)");
+        syncHeader();
+      });
+    }
+
+    const alertsBtn = $("#btn-alerts");
+    if (alertsBtn) alertsBtn.addEventListener("click", () => toast("Alerts panel (mock)"));
+
+    const logoutBtn = $("#btn-logout");
+    if (logoutBtn) logoutBtn.addEventListener("click", () => toast("Logged out (mock)"));
+
+    // quick actions
+    const quickPack = $("#btn-quick-pack");
+    if (quickPack) quickPack.addEventListener("click", () => {
+      setActiveView("packs");
+      toast("Quick Pack → Packs (mock)");
+    });
+
+    const quickMesh = $("#btn-quick-mesh");
+    if (quickMesh) quickMesh.addEventListener("click", () => {
+      setActiveView("dashboard");
+      toast("Mesh → HUD (mock)");
+    });
+
+    // role selection
+    const roleGrid = $("#roleGrid");
+    const saveRole = $("#save-role");
+    if (roleGrid && saveRole) {
+      roleGrid.addEventListener("click", (e) => {
+        const card = e.target.closest(".role-card");
+        if (!card) return;
+        $$(".role-card", roleGrid).forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        saveRole.disabled = false;
+        state.role = card.dataset.role;
+
+        const map = {
+          dev: ["Dev / Builder", "Dev"],
+          creator: ["Creator / Artist", "Creator"],
+          hunter: ["Alpha hunter", "Hunter"],
+          collector: ["Collector / Fan", "Collector"]
+        };
+        state.roleLabel = map[state.role][0];
+        state.roleShort = map[state.role][1];
+        syncHeader();
+      });
+
+      saveRole.addEventListener("click", () => {
+        saveRole.disabled = true;
+        toast("Role saved (mock)");
+        openSettings(false);
+      });
     }
   }
 
-  // ---------- TICKER ----------
-  const TICK_ITEMS = [
-    { left:"SniperBot", tag:"Pack Öppnad", badge:"Artifact", value:53.60 },
-    { left:"Zora Köp", tag:"Fragment", badge:"Diskutera", value:606.61 },
-    { left:"Fragment Burn", tag:"Core", badge:"Pull Lab", value:1008.70 },
-    { left:"Farcaster Cast", tag:"Fragment", badge:"Diskutera", value:192.69 },
-    { left:"Val Alert", tag:"Relic", badge:"Följ Val", value:104.41 }
-  ];
+  // ---------- Ticker ----------
+  function initTicker() {
+    const track = $("#tickerTrack");
+    if (!track) return;
 
-  function renderTicker(){
-    tickerTrack.innerHTML = "";
-    const items = [...TICK_ITEMS, ...TICK_ITEMS, ...TICK_ITEMS]; // loop feel
-    items.forEach(it => {
-      const el = document.createElement("div");
-      el.className = "ticker-item";
-      el.innerHTML = `
-        <strong>${it.left}</strong>
+    const items = [
+      { name: "SniperBot", tag:"Pack Öppnad", badge:"Artifact", val:"$53.60" },
+      { name: "Zora Köp", tag:"Fragment", badge:"Diskutera", val:"$606.61" },
+      { name: "Farcaster Cast", tag:"Fragment", badge:"Reply", val:"$192.69" },
+      { name: "Fragment Burn", tag:"Core", badge:"Pull Lab", val:"$1008.70" },
+      { name: "Val Alert", tag:"Relic", badge:"Följ", val:"$104.41" },
+    ];
+
+    track.innerHTML = items.map(it => `
+      <div class="tick">
+        <strong>${it.name}</strong>
         <span class="tag">${it.tag}</span>
         <span class="tag">${it.badge}</span>
-        <span class="value">${fmtMoney(it.value)}</span>
-      `;
-      tickerTrack.appendChild(el);
-    });
+        <span class="val">${it.val}</span>
+      </div>
+    `).join("");
 
     // simple marquee
     let x = 0;
-    const speed = 0.35; // smooth
-    function tick(){
-      x -= speed;
-      const w = tickerTrack.scrollWidth / 3; // because tripled
-      if (Math.abs(x) > w) x = 0;
-      tickerTrack.style.transform = `translateX(${x}px)`;
-      requestAnimationFrame(tick);
+    function step() {
+      x -= 0.45;
+      if (Math.abs(x) > track.scrollWidth / 2) x = 0;
+      track.style.transform = `translateX(${x}px)`;
+      requestAnimationFrame(step);
     }
-    requestAnimationFrame(tick);
+    requestAnimationFrame(step);
   }
 
-  // ---------- VIEWS RENDER ----------
-  function renderView(view){
-    const root = $(`#view-${view}`);
-    if (!root) return;
-
-    // dashboard default
-    if (view === "dashboard"){
-      root.innerHTML = `
-        <div class="grid-2">
-          <div class="panel">
-            <div class="section-title">Mesh HUD / Översikt</div>
-            <div class="grid-2">
-              <div class="panel" style="padding:12px">
-                <div class="k">Totala Packs Öppnade</div>
-                <div class="v" style="font-size:28px;margin-top:6px">4,321</div>
-              </div>
-              <div class="panel" style="padding:12px">
-                <div class="k">Total Volym (24h)</div>
-                <div class="v" style="font-size:28px;margin-top:6px">$1.2M</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="section-title">Live events (mock)</div>
-            <div class="list" id="liveEvents"></div>
-          </div>
-        </div>
-      `;
-      renderEvents($("#liveEvents"));
-      return;
-    }
-
-    if (view === "trading"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Trading Wall</div>
-          <div class="list" id="tradeList"></div>
-        </div>
-      `;
-      renderTrade($("#tradeList"));
-      return;
-    }
-
-    if (view === "packs"){
-      root.innerHTML = `
-        <div class="grid-2">
-          <div class="panel">
-            <div class="section-title">Packs & Inventory</div>
-            <div class="grid-2">
-              <div class="panel" style="padding:12px">
-                <div class="k">Öppnade packs</div>
-                <div class="v" style="font-size:28px;margin-top:6px">7</div>
-              </div>
-              <div class="panel" style="padding:12px">
-                <div class="k">Fragments</div>
-                <div class="v" style="font-size:28px;margin-top:6px">142</div>
-              </div>
-            </div>
-            <div style="height:10px"></div>
-            <button class="btn-primary full-width" id="openPackBtn">Open pack (mock reveal)</button>
-          </div>
-
-          <div class="panel">
-            <div class="section-title">Senaste drops</div>
-            <div class="list" id="packList"></div>
-          </div>
-        </div>
-      `;
-      renderPacks($("#packList"));
-      const openPackBtn = $("#openPackBtn");
-      if (openPackBtn) openPackBtn.addEventListener("click", handleOpenPack);
-      return;
-    }
-
-    if (view === "pull"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Pull Lab / Luck Engine</div>
-          <div class="grid-2">
-            <div class="panel" style="padding:12px">
-              <div class="k">Luck</div>
-              <div class="v" style="font-size:28px;margin-top:6px">${(Math.random()*100).toFixed(1)}%</div>
-            </div>
-            <div class="panel" style="padding:12px">
-              <div class="k">Rarity bias</div>
-              <div class="v" style="font-size:28px;margin-top:6px">+${(Math.random()*8).toFixed(1)}</div>
-            </div>
-          </div>
-          <div style="height:10px"></div>
-          <div class="list" id="pullList"></div>
-        </div>
-      `;
-      renderPull($("#pullList"));
-      return;
-    }
-
-    if (view === "forge"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Creator Forge</div>
-          <div class="grid-2">
-            <div class="panel" style="padding:12px">
-              <div class="k">Module slots</div>
-              <div class="v" style="font-size:28px;margin-top:6px">5</div>
-            </div>
-            <div class="panel" style="padding:12px">
-              <div class="k">Active surfaces</div>
-              <div class="v" style="font-size:28px;margin-top:6px">2</div>
-            </div>
-          </div>
-          <div style="height:10px"></div>
-          <div class="list" id="forgeList"></div>
-        </div>
-      `;
-      renderForge($("#forgeList"));
-      return;
-    }
-
-    if (view === "feed"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">SpawnFeed / Reels</div>
-          <div class="list" id="feedList"></div>
-        </div>
-      `;
-      renderFeed($("#feedList"));
-      return;
-    }
-
-    if (view === "supcast"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">SupCast / Support</div>
-          <div class="list" id="supList"></div>
-        </div>
-      `;
-      renderSup($("#supList"));
-      return;
-    }
-
-    if (view === "settings"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Inställningar</div>
-          <p style="margin:0;color:rgba(255,255,255,.65)">Öppna Settings-sheeta uppe till höger för full profil.</p>
-          <div style="height:10px"></div>
-          <button class="btn-primary" id="openSettingsInline">Open Settings</button>
-        </div>
-      `;
-      const b = $("#openSettingsInline");
-      if (b) b.addEventListener("click", openSettings);
-      return;
-    }
-
-    if (view === "leaderboard"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Leaderboard</div>
-          <div class="list" id="lbList"></div>
-        </div>
-      `;
-      renderLeaderboard($("#lbList"));
-      return;
-    }
-
-    if (view === "profile"){
-      root.innerHTML = `
-        <div class="panel">
-          <div class="section-title">Min Profil</div>
-          <div class="grid-2">
-            <div class="panel" style="padding:12px">
-              <div class="k">Handle</div>
-              <div class="v" style="font-size:22px;margin-top:6px">@spawniz</div>
-              <div class="sub" style="color:rgba(255,255,255,.60);font-size:12px;margin-top:4px">Mesh ID · ${state.role}</div>
-            </div>
-            <div class="panel" style="padding:12px">
-              <div class="k">Status</div>
-              <div class="v" style="font-size:22px;margin-top:6px">${state.connected ? "Connected" : "Not connected"}</div>
-              <div class="sub" style="color:rgba(255,255,255,.60);font-size:12px;margin-top:4px">Wallet: ${state.wallet || "—"}</div>
-            </div>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    root.innerHTML = "";
-  }
-
-  // ---------- MOCK CONTENT ----------
-  function renderEvents(root){
-    if (!root) return;
-    const now = new Date();
-    const events = [
-      { title:"Zora Köp", sub:"CreatorX interagerade med S002–BETA. Notional", tag:"Fragment", cta:"Diskutera", value:606.61 },
-      { title:"Fragment Burn", sub:"MeshArchitect interagerade med S005–MONAD. Notional", tag:"Core", cta:"Pull Lab", value:1008.70 },
-      { title:"Farcaster Cast", sub:"NewUser interagerade med S005–MONAD. Notional", tag:"Fragment", cta:"Diskutera", value:192.69 },
-      { title:"Val Alert", sub:"MeshArchitect interagerade med S004–BASE. Notional", tag:"Relic", cta:"Följ Val", value:104.41 },
-      { title:"Pack Öppnad", sub:"Spawniz interagerade med S003–ZORA. Notional", tag:"Fragment", cta:"Se Kort", value:1137.37 },
-    ];
-
-    root.innerHTML = "";
-    events.forEach((e,i)=>{
-      const t = new Date(now.getTime() - (i*6+2)*60000);
-      const hh = String(t.getHours()).padStart(2,"0");
-      const mm = String(t.getMinutes()).padStart(2,"0");
-
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${e.title} <span style="opacity:.55;font-weight:700">(${hh}:${mm})</span></div>
-          <div class="sub">${e.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${e.tag}</span>
-          <button class="cta" data-cta="${e.cta}">${e.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(e.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-
-    $$(".cta", root).forEach(b=>{
-      b.addEventListener("click", ()=>{
-        state.xp += 10;
-        syncKpis();
-        showToast(`Action: ${b.dataset.cta} (+10 XP)`);
-      });
-    });
-  }
-
-  function renderTrade(root){
-    if (!root) return;
-    const items = [
-      { title:"Buy", sub:"S003–ZORA · 25 sparks · route: Base", tag:"Market", cta:"Simulera", value:53.60 },
-      { title:"Sell", sub:"S005–MONAD · 12 sparks · route: Base", tag:"PnL", cta:"Se PnL", value:104.41 },
-      { title:"Snipe", sub:"New token · latency watch", tag:"Bot", cta:"Arm", value:192.69 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-  }
-
-  function renderPacks(root){
-    if (!root) return;
-    const items = [
-      { title:"Tiny Legends — Series 2", sub:"Pack · 5 cards · reveal: mock", tag:"Pack", cta:"Open", value:53.60 },
-      { title:"Foil Realms — Neon Witch", sub:"Relic drop · shimmer", tag:"Relic", cta:"View", value:192.69 },
-      { title:"Mesh Fragment", sub:"Burnable fragment · XP source", tag:"Fragment", cta:"Burn", value:104.41 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-
-    $$(".cta", root).forEach(b=>{
-      b.addEventListener("click", ()=>{
-        showToast(`Pack action: ${b.textContent}`);
-      });
-    });
-  }
-
-  function renderPull(root){
-    if (!root) return;
-    const items = [
-      { title:"Luck sweep", sub:"Analyserar volatilitetsfönster", tag:"Engine", cta:"Kör", value:104.41 },
-      { title:"Rarity bias", sub:"Simulerar pool-vikter", tag:"Lab", cta:"Tweaka", value:53.60 },
-      { title:"Entropy ping", sub:"Mock entropy feed", tag:"Entropy", cta:"Ping", value:192.69 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-  }
-
-  function renderForge(root){
-    if (!root) return;
-    const items = [
-      { title:"Create module", sub:"Pack reveal, Market sync, Alerts", tag:"Module", cta:"Create", value:53.60 },
-      { title:"Surface import", sub:"Embed miniapp / widget", tag:"Surface", cta:"Import", value:104.41 },
-      { title:"Policy rails", sub:"Rate-limit, allowlist, safety", tag:"Safety", cta:"Set", value:192.69 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-  }
-
-  function renderFeed(root){
-    if (!root) return;
-    const items = [
-      { title:"Spawniz minted", sub:"Tiny Legends · card #042", tag:"Feed", cta:"Open", value:53.60 },
-      { title:"NewUser followed", sub:"MeshArchitect · +1 rep", tag:"Social", cta:"View", value:104.41 },
-      { title:"Artifact reveal", sub:"Foil shimmer · Rare", tag:"Reel", cta:"Watch", value:192.69 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-  }
-
-  function renderSup(root){
-    if (!root) return;
-    const items = [
-      { title:"#1023 — “Pack reveal not loading”", sub:"Open → +45 XP", tag:"Support", cta:"Update", value:53.60 },
-      { title:"#1024 — “Listing sync slow”", sub:"Open → +25 XP", tag:"Support", cta:"Update", value:104.41 },
-      { title:"#1025 — “Wallet connect UX”", sub:"Open → +15 XP", tag:"Support", cta:"Update", value:192.69 },
-    ];
-    root.innerHTML = "";
-    items.forEach(i=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">${i.title}</div>
-          <div class="sub">${i.sub}</div>
-        </div>
-        <div class="right">
-          <span class="chip">${i.tag}</span>
-          <button class="cta">${i.cta}</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${fmtMoney(i.value)}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-
-    $$(".cta", root).forEach(b=>{
-      b.addEventListener("click", ()=>{
-        state.xp += 45;
-        syncKpis();
-        showToast("Support update (+45 XP)");
-      });
-    });
-  }
-
-  function renderLeaderboard(root){
-    if (!root) return;
-    const rows = [
-      { name:"MeshArchitect", score: 9921 },
-      { name:"Spawniz", score: 8704 },
-      { name:"SniperBot", score: 7990 },
-      { name:"CreatorX", score: 7122 },
-      { name:"NewUser", score: 6401 },
-    ];
-    root.innerHTML = "";
-    rows.forEach((r, idx)=>{
-      const el = document.createElement("div");
-      el.className = "event";
-      el.innerHTML = `
-        <div class="left">
-          <div class="title">#${idx+1} ${r.name}</div>
-          <div class="sub">XP total · mock ranking</div>
-        </div>
-        <div class="right">
-          <span class="chip">Rank</span>
-          <button class="cta">Inspect</button>
-          <div style="font-weight:900;color:rgba(110,255,190,.95)">${r.score.toLocaleString("sv-SE")}</div>
-        </div>
-      `;
-      root.appendChild(el);
-    });
-  }
-
-  // ---------- PACK OPEN ----------
-  function handleOpenPack(){
-    state.eventsToday += 1;
-    state.alerts += 1;
-    state.xp += 25;
-    state.spn += 7;
-    syncKpis();
-    showToast("Pack öppnad (mock) · +25 XP");
-    // jump to packs view for platform feel
-    setView("packs");
-  }
-
-  // ---------- KPIs ----------
-  function syncKpis(){
-    gasEl.textContent = `~${state.gas.toFixed(2)} gwei`;
-    walletsEl.textContent = String(state.wallets);
-    xpEl.textContent = String(state.xp);
-    spnEl.textContent = String(state.spn);
-    eventsTodayEl.textContent = String(state.eventsToday);
-
-    alertsCount.textContent = String(state.alerts);
-    alertsKpi.textContent = String(state.alerts);
-  }
-
-  // ---------- ROLE SELECT ----------
-  const roleMap = {
-    dev: { short:"Dev", pill:"Dev / Builder" },
-    creator: { short:"Creator", pill:"Creator / Artist" },
-    hunter: { short:"Hunter", pill:"Alpha hunter" },
-    collector: { short:"Collector", pill:"Collector / Fan" },
-  };
-
-  function setRole(role){
-    state.role = role;
-    const r = roleMap[role] || roleMap.creator;
-    roleShort.textContent = r.short;
-    rolePill.textContent = r.pill;
-    saveRoleBtn.disabled = false;
-  }
-
-  // ---------- EVENTS / LISTENERS ----------
-  function bindNav(){
-    $$(".nav-item").forEach(btn=>{
-      btn.addEventListener("click", ()=> setView(btn.dataset.view));
-    });
-    $$(".bottom-btn").forEach(btn=>{
-      btn.addEventListener("click", ()=> setView(btn.dataset.view));
-    });
-  }
-
-  function bindTop(){
-    if (btnMenu){
-      btnMenu.addEventListener("click", ()=>{
-        sidebar.classList.toggle("open");
-      });
-    }
-
-    settingsBtn.addEventListener("click", openSettings);
-    settingsClose.addEventListener("click", closeSettings);
-    settingsBackdrop.addEventListener("click", (e)=>{
-      if (e.target === settingsBackdrop) closeSettings();
-    });
-
-    btnConnect.addEventListener("click", connectMock);
-
-    $("#btn-alerts").addEventListener("click", ()=>{
-      state.alerts = Math.max(0, state.alerts - 1);
-      syncKpis();
-      showToast("Alerts acknowledged");
-    });
-
-    $("#btn-logout").addEventListener("click", ()=>{
-      showToast("Logged out (mock)");
-      state.connected = false;
-      state.wallet = null;
-      connectLabel.textContent = "Anslut";
-      vaultEth.textContent = "Base wallet";
-      $("#settingsWalletAddress").textContent = "Not connected";
-    });
-
-    $("#btn-account").addEventListener("click", openSettings);
-
-    if (quickPack) quickPack.addEventListener("click", handleOpenPack);
-    if (quickMesh) quickMesh.addEventListener("click", ()=> setView("dashboard"));
-  }
-
-  function bindSettings(){
-    if (!roleGrid) return;
-
-    $$(".role-card", roleGrid).forEach(card=>{
-      card.addEventListener("click", ()=>{
-        $$(".role-card", roleGrid).forEach(c=> c.classList.remove("selected"));
-        card.classList.add("selected");
-        setRole(card.dataset.role);
-      });
-    });
-
-    saveRoleBtn.addEventListener("click", ()=>{
-      saveRoleBtn.disabled = true;
-      showToast("Role saved");
-      closeSettings();
-    });
-  }
-
-  // ---------- GAS mock ----------
-  function tickGas(){
-    const drift = (Math.random()-0.5) * 0.06;
-    state.gas = Math.max(0.08, Math.min(0.65, state.gas + drift));
-    gasEl.textContent = `~${state.gas.toFixed(2)} gwei`;
-    setTimeout(tickGas, 1600);
-  }
-
-  // ---------- MESH CANVAS ----------
-  function startMesh(){
+  // ---------- Mesh canvas ----------
+  function initMesh() {
     const canvas = $("#meshCanvas");
-    const ctx = canvas.getContext("2d", { alpha:true });
-    let w=0, h=0, dpr=1;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
 
+    let w = 0, h = 0, dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     const pts = [];
-    const LINKS = 2.2; // connection radius multiplier
+    const N = 58;
 
-    function resize(){
-      dpr = Math.min(2, window.devicePixelRatio || 1);
+    function resize() {
       w = canvas.clientWidth;
       h = canvas.clientHeight;
       canvas.width = Math.floor(w * dpr);
       canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
 
+    function seed() {
       pts.length = 0;
-      const count = Math.round((w*h) / 52000); // density
-      const n = Math.max(22, Math.min(62, count));
-      for (let i=0;i<n;i++){
+      for (let i = 0; i < N; i++) {
         pts.push({
-          x: Math.random()*w,
-          y: Math.random()*h,
-          vx: (Math.random()-0.5)*0.22,
-          vy: (Math.random()-0.5)*0.22,
-          r: 1.2 + Math.random()*1.6
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: 1 + Math.random() * 1.2
         });
       }
     }
 
-    function draw(){
-      ctx.clearRect(0,0,w,h);
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
 
-      // soft glow background dots/lines
-      ctx.globalCompositeOperation = "lighter";
+      // subtle haze
+      const g = ctx.createRadialGradient(w*0.2, h*0.1, 0, w*0.2, h*0.1, Math.max(w,h));
+      g.addColorStop(0, "rgba(59,130,246,0.10)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
 
-      for (let i=0;i<pts.length;i++){
-        const p = pts[i];
-        p.x += p.vx; p.y += p.vy;
-        if (p.x<0||p.x>w) p.vx *= -1;
-        if (p.y<0||p.y>h) p.vy *= -1;
-
-        // dots
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(140,180,255,.25)";
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fill();
+      // move
+      for (const p of pts) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -30) p.x = w + 30;
+        if (p.x > w + 30) p.x = -30;
+        if (p.y < -30) p.y = h + 30;
+        if (p.y > h + 30) p.y = -30;
       }
 
-      // links
-      const maxDist = Math.min(w,h) / 3.2;
-      for (let i=0;i<pts.length;i++){
-        for (let j=i+1;j<pts.length;j++){
+      // connections
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
           const a = pts[i], b = pts[j];
-          const dx = a.x-b.x, dy = a.y-b.y;
-          const dist = Math.hypot(dx,dy);
-          if (dist < maxDist){
-            const t = 1 - dist/maxDist;
-            ctx.strokeStyle = `rgba(120,160,255,${0.12*t})`;
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 160) {
+            const alpha = (1 - dist / 160) * 0.18;
+            ctx.strokeStyle = `rgba(120,160,255,${alpha})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(a.x,a.y);
-            ctx.lineTo(b.x,b.y);
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
             ctx.stroke();
           }
         }
       }
 
-      ctx.globalCompositeOperation = "source-over";
+      // points
+      for (const p of pts) {
+        ctx.fillStyle = "rgba(180,210,255,0.22)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       requestAnimationFrame(draw);
     }
 
-    window.addEventListener("resize", resize);
     resize();
-    requestAnimationFrame(draw);
+    seed();
+    draw();
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resize();
+        seed();
+      }, 120);
+    }, { passive: true });
   }
 
-  // ---------- INIT ----------
-  function init(){
-    alertsCount.textContent = String(state.alerts);
-    alertsKpi.textContent = String(state.alerts);
-    syncKpis();
-
-    renderTicker();
-    bindNav();
-    bindTop();
-    bindSettings();
-
-    // start at dashboard
-    renderView("dashboard");
-
-    tickGas();
-    startMesh();
+  // ---------- Boot ----------
+  function boot() {
+    syncHeader();
+    renderAll();
+    wireNav();
+    initTicker();
+    initMesh();
+    setActiveView("dashboard");
   }
 
-  init();
+  document.addEventListener("DOMContentLoaded", boot, { once: true });
 })();
