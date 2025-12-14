@@ -101,9 +101,9 @@
   </div>
 
   <!-- APP SHELL -->
-  <div class="shell" id="app-container">
+  <div class="shell">
 
-    <!-- TOP HEADER -->
+    <!-- TOP HEADER (React-look) -->
     <header class="topbar">
       <div class="topbar-left">
         <button id="btn-menu" class="icon-button only-mobile" aria-label="Open menu">☰</button>
@@ -123,8 +123,8 @@
 
         <button id="btn-connect" class="btn-connect">
           <span class="icon">👛</span>
-          <span class="label" id="connectLabel">Anslut</span>
-          <span class="sub mono" id="vaultEth">Base wallet</span>
+          <span class="label">Ansluten</span>
+          <span class="sub mono" id="vaultEth">Vault 0.23 ETH</span>
         </button>
 
         <button id="btn-alerts" class="alerts-btn" aria-label="Alerts">
@@ -141,7 +141,6 @@
     </div>
 
     <div class="main">
-
       <!-- SIDEBAR -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-block">
@@ -172,7 +171,7 @@
       <!-- CONTENT -->
       <main class="content">
 
-        <!-- HERO (cleanare + mer yta) -->
+        <!-- HERO (din Mesh-card känsla) -->
         <section class="card hero">
           <div class="hero-top">
             <button class="avatar-chip" id="btn-account">
@@ -191,38 +190,30 @@
           </div>
 
           <div class="hero-title">
-            <div class="hero-title-row">
-              <h1>Mesh HUD</h1>
-              <div class="hero-actions">
-                <button class="btn-ghost" id="btn-quick-pack">🎁 Quick Pack</button>
-                <button class="btn-ghost" id="btn-quick-mesh">🌀 Mesh</button>
-              </div>
-            </div>
+            <h1>Mesh HUD</h1>
             <p>En sammanhängande vy över aktivitet, moduler och plattform-import (mock → live).</p>
           </div>
 
-          <div class="hero-grid">
-            <div class="hero-stats">
-              <div class="stat">
-                <div class="k">GAS</div><div class="v" id="gas">~0.20 gwei</div>
-              </div>
-              <div class="stat">
-                <div class="k">MODE</div><div class="v">Single mesh · Demo</div>
-              </div>
-              <div class="stat">
-                <div class="k">WALLETS</div><div class="v" id="wallets">0</div>
-              </div>
-              <div class="stat">
-                <div class="k">SYNC</div><div class="v">v1 hooks ready</div>
-              </div>
+          <div class="hero-stats">
+            <div class="stat">
+              <div class="k">GAS</div><div class="v" id="gas">~0.20 gwei</div>
             </div>
+            <div class="stat">
+              <div class="k">MODE</div><div class="v">Single mesh · Demo</div>
+            </div>
+            <div class="stat">
+              <div class="k">WALLETS</div><div class="v" id="wallets">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">SYNC</div><div class="v">v1 hooks ready</div>
+            </div>
+          </div>
 
-            <div class="hero-kpis">
-              <div class="kpi"><div class="k">XP</div><div class="v" id="xp">1575</div></div>
-              <div class="kpi"><div class="k">SPN</div><div class="v" id="spn">497</div></div>
-              <div class="kpi"><div class="k">EVENTS</div><div class="v" id="eventsToday">9</div></div>
-              <div class="kpi"><div class="k">ALERTS</div><div class="v" id="alertsKpi">3</div></div>
-            </div>
+          <div class="hero-kpis">
+            <div class="kpi"><div class="k">XP</div><div class="v" id="xp">1575</div></div>
+            <div class="kpi"><div class="k">SPN</div><div class="v" id="spn">497</div></div>
+            <div class="kpi"><div class="k">EVENTS</div><div class="v" id="eventsToday">9</div></div>
+            <div class="kpi"><div class="k">ALERTS</div><div class="v" id="alertsKpi">3</div></div>
           </div>
 
           <div class="note">XP kör mock nu · senare kopplas den mot riktiga event-källor (Zora/Farcaster/Vibe/Base).</div>
