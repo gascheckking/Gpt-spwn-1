@@ -1,0 +1,250 @@
+<!-- index.html -->
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SpawnEngine · Mesh HUD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="app-body">
+  <!-- MESH BG -->
+  <div id="mesh-bg" aria-hidden="true">
+    <canvas id="meshCanvas"></canvas>
+    <div class="mesh-overlay"></div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- SETTINGS SHEET -->
+  <div id="settings-backdrop" class="sheet-backdrop hidden">
+    <div class="sheet settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="sheet-header">
+        <div class="sheet-title">Settings · Mesh profile</div>
+        <button id="settings-close" class="icon-button" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="sheet-section">
+        <h3>Account & mesh</h3>
+        <div class="settings-row">
+          <div class="settings-item">
+            <div class="settings-label">Handle</div>
+            <div class="settings-main" id="settingsHandle">@spawniz</div>
+            <div class="settings-sub">Mesh ID · Creator</div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-label">Connected wallet</div>
+            <div class="settings-main wallet-address" id="settingsWalletAddress">Not connected</div>
+            <div class="settings-sub">Base mainnet (mock)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-section">
+        <h3>Role & lanes</h3>
+        <p class="sheet-sub">Välj hur SpawnEngine ska vikta XP, quests och feeds.</p>
+
+        <div class="role-grid" id="roleGrid">
+          <button class="role-card" data-role="dev">
+            <h4>🧪 Dev / Builder</h4><p>Contracts, bots, infra, miniapps.</p>
+          </button>
+          <button class="role-card selected" data-role="creator">
+            <h4>🎨 Creator / Artist</h4><p>Cards, packs, tokens, art drops.</p>
+          </button>
+          <button class="role-card" data-role="hunter">
+            <h4>⚡ Alpha hunter</h4><p>Trading, snipes, PnL, packs.</p>
+          </button>
+          <button class="role-card" data-role="collector">
+            <h4>🎴 Collector / Fan</h4><p>Open, collect, complete sets.</p>
+          </button>
+        </div>
+
+        <button id="save-role" class="btn-primary full-width" disabled>Save role</button>
+      </div>
+
+      <div class="sheet-section">
+        <h3>Connected platforms</h3>
+        <div class="settings-row">
+          <div class="settings-pill">
+            <div class="settings-label">Farcaster</div>
+            <div class="settings-main">Frames / Miniapps</div>
+            <span class="chip chip-green">Active (mock)</span>
+          </div>
+          <div class="settings-pill">
+            <div class="settings-label">Zora</div>
+            <div class="settings-main">Coins · Mints</div>
+            <span class="chip chip-purple">Docked</span>
+          </div>
+          <div class="settings-pill">
+            <div class="settings-label">VibeMarket</div>
+            <div class="settings-main">Packs · Reveal</div>
+            <span class="chip chip-amber">Planned</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-section">
+        <h3>SpawnEngine store</h3>
+        <ul class="settings-list">
+          <li>Importera din app som “Surface” (miniapp/embed)</li>
+          <li>Köp/hyr moduler (Pack Reveal, Market Sync, Alerts)</li>
+          <li>API keys & safety rails</li>
+          <li>Event Mesh routing (XP, badges, reputation)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP SHELL -->
+  <div class="shell">
+
+    <!-- TOP HEADER (React-look) -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="btn-menu" class="icon-button only-mobile" aria-label="Open menu">☰</button>
+        <div class="brand">
+          <div class="brand-icon">⚡</div>
+          <div class="brand-text">SpawnEngine</div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="status-pill">
+          <span class="dot live"></span>
+          <span class="mono">BASE</span>
+          <span class="sep">|</span>
+          <span class="mono">LIVE</span>
+        </div>
+
+        <button id="btn-connect" class="btn-connect">
+          <span class="icon">👛</span>
+          <span class="label">Ansluten</span>
+          <span class="sub mono" id="vaultEth">Vault 0.23 ETH</span>
+        </button>
+
+        <button id="btn-alerts" class="alerts-btn" aria-label="Alerts">
+          🔔 <span id="alertsCount" class="badge">3</span>
+        </button>
+
+        <button id="settings-btn" class="icon-button" aria-label="Settings">⚙</button>
+      </div>
+    </header>
+
+    <!-- LIVE TICKER -->
+    <div class="ticker" id="ticker">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
+    <div class="main">
+      <!-- SIDEBAR -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-block">
+          <div class="sidebar-title">Kärnvyer</div>
+          <button class="nav-item active" data-view="dashboard">▦ Dashboard / HUD</button>
+          <button class="nav-item" data-view="trading">📈 Trading Wall</button>
+          <button class="nav-item" data-view="packs">🎒 Packs & Inventory</button>
+          <button class="nav-item" data-view="pull">💎 Pull Lab / Luck Engine</button>
+        </div>
+
+        <div class="sidebar-block">
+          <div class="sidebar-title">Ekosystem</div>
+          <button class="nav-item" data-view="forge">🧩 Creator Forge</button>
+          <button class="nav-item" data-view="feed">🎥 SpawnFeed / Reels</button>
+          <button class="nav-item" data-view="supcast">🛰 SupCast / Support</button>
+          <button class="nav-item" data-view="settings">⚙ Inställningar</button>
+          <button class="nav-item" data-view="leaderboard">⚔ Leaderboard</button>
+          <button class="nav-item" data-view="profile">👤 Min Profil</button>
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="mono small">APP ID: spawnengine-v1</div>
+          <div class="mono small">User: MeshArchitect</div>
+          <button class="btn-danger" id="btn-logout">Logga ut</button>
+        </div>
+      </aside>
+
+      <!-- CONTENT -->
+      <main class="content">
+
+        <!-- HERO (din Mesh-card känsla) -->
+        <section class="card hero">
+          <div class="hero-top">
+            <button class="avatar-chip" id="btn-account">
+              <div class="avatar-circle">S</div>
+              <div>
+                <div class="avatar-handle" id="handle">@spawniz</div>
+                <div class="avatar-sub">Mesh ID · <span id="roleShort">Creator</span></div>
+              </div>
+            </button>
+
+            <div class="hero-mini">
+              <div class="pill">v0.9 Mesh HUD</div>
+              <div class="pill soft" id="rolePill">Creator / Artist</div>
+              <div class="pill outline">Farcaster ready</div>
+            </div>
+          </div>
+
+          <div class="hero-title">
+            <h1>Mesh HUD</h1>
+            <p>En sammanhängande vy över aktivitet, moduler och plattform-import (mock → live).</p>
+          </div>
+
+          <div class="hero-stats">
+            <div class="stat">
+              <div class="k">GAS</div><div class="v" id="gas">~0.20 gwei</div>
+            </div>
+            <div class="stat">
+              <div class="k">MODE</div><div class="v">Single mesh · Demo</div>
+            </div>
+            <div class="stat">
+              <div class="k">WALLETS</div><div class="v" id="wallets">0</div>
+            </div>
+            <div class="stat">
+              <div class="k">SYNC</div><div class="v">v1 hooks ready</div>
+            </div>
+          </div>
+
+          <div class="hero-kpis">
+            <div class="kpi"><div class="k">XP</div><div class="v" id="xp">1575</div></div>
+            <div class="kpi"><div class="k">SPN</div><div class="v" id="spn">497</div></div>
+            <div class="kpi"><div class="k">EVENTS</div><div class="v" id="eventsToday">9</div></div>
+            <div class="kpi"><div class="k">ALERTS</div><div class="v" id="alertsKpi">3</div></div>
+          </div>
+
+          <div class="note">XP kör mock nu · senare kopplas den mot riktiga event-källor (Zora/Farcaster/Vibe/Base).</div>
+        </section>
+
+        <!-- VIEWS -->
+        <section class="view active" id="view-dashboard"></section>
+        <section class="view" id="view-trading"></section>
+        <section class="view" id="view-packs"></section>
+        <section class="view" id="view-pull"></section>
+        <section class="view" id="view-forge"></section>
+        <section class="view" id="view-feed"></section>
+        <section class="view" id="view-supcast"></section>
+        <section class="view" id="view-settings"></section>
+        <section class="view" id="view-leaderboard"></section>
+        <section class="view" id="view-profile"></section>
+
+      </main>
+    </div>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="bottom-nav" id="mobileNav">
+      <button class="bottom-btn active" data-view="dashboard">🏠<span>HUD</span></button>
+      <button class="bottom-btn" data-view="trading">📈<span>Trade</span></button>
+      <button class="bottom-btn" data-view="packs">🎒<span>Packs</span></button>
+      <button class="bottom-btn" data-view="forge">🧩<span>Forge</span></button>
+      <button class="bottom-btn" data-view="supcast">🛰<span>Support</span></button>
+    </nav>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
