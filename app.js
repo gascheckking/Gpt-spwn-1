@@ -63,7 +63,11 @@ const seriesHeat = [
 
 /* -------------------- HELPERS -------------------- */
 const $ = (id) => document.getElementById(id);
+            const quickPack = document.getElementById('btn-quick-pack');
+            if (quickPack) quickPack.addEventListener('click', handleOpenPack);
 
+            const quickMesh = document.getElementById('btn-quick-mesh');
+            if (quickMesh) quickMesh.addEventListener('click', () => handleTabChange('mesh'));
 function toast(msg, isError = false) {
   const el = $('toast');
   el.textContent = msg;
