@@ -103,7 +103,7 @@
   <!-- APP SHELL -->
   <div class="shell">
 
-    <!-- TOP HEADER (React-look) -->
+    <!-- TOP HEADER -->
     <header class="topbar">
       <div class="topbar-left">
         <button id="btn-menu" class="icon-button only-mobile" aria-label="Open menu">☰</button>
@@ -123,8 +123,8 @@
 
         <button id="btn-connect" class="btn-connect">
           <span class="icon">👛</span>
-          <span class="label">Ansluten</span>
-          <span class="sub mono" id="vaultEth">Vault 0.23 ETH</span>
+          <span class="label" id="connectLabel">Anslut</span>
+          <span class="sub mono" id="vaultEth">Base wallet</span>
         </button>
 
         <button id="btn-alerts" class="alerts-btn" aria-label="Alerts">
@@ -171,7 +171,7 @@
       <!-- CONTENT -->
       <main class="content">
 
-        <!-- HERO (din Mesh-card känsla) -->
+        <!-- HERO -->
         <section class="card hero">
           <div class="hero-top">
             <button class="avatar-chip" id="btn-account">
@@ -194,6 +194,11 @@
             <p>En sammanhängande vy över aktivitet, moduler och plattform-import (mock → live).</p>
           </div>
 
+          <div class="hero-actions">
+            <button class="btn-soft" id="btn-quick-pack">🎁 Quick Pack</button>
+            <button class="btn-soft" id="btn-quick-mesh">🌀 Mesh</button>
+          </div>
+
           <div class="hero-stats">
             <div class="stat">
               <div class="k">GAS</div><div class="v" id="gas">~0.20 gwei</div>
@@ -212,7 +217,7 @@
           <div class="hero-kpis">
             <div class="kpi"><div class="k">XP</div><div class="v" id="xp">1575</div></div>
             <div class="kpi"><div class="k">SPN</div><div class="v" id="spn">497</div></div>
-            <div class="kpi"><div class="k">EVENTS</div><div class="v" id="eventsToday">9</div></div>
+            <div class="kpi"><div class="k">EVENTS</div><div class="v" id="eventsToday">10</div></div>
             <div class="kpi"><div class="k">ALERTS</div><div class="v" id="alertsKpi">3</div></div>
           </div>
 
